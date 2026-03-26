@@ -14,33 +14,28 @@ class ViewTwoVC: UIViewController {
     }
     
     @IBAction func scan(_ sender: Any) {
-        let vc = storyboard?.instantiateViewController(identifier: "scan")
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.scan)
         self.present(vc!, animated: true, completion: nil)
     }
     
     @IBAction func addtolist(_ sender: Any) {
-        let itemObject = UserDefaults.standard.object(forKey: "item")
-        
-        var items : [String]
-        
-        if let tempItem = itemObject as? [String] {
-            items = tempItem
-            
-            items.append(ingredientsField.text!)
-            
-        }else {
-            items = [ingredientsField.text!]
+        guard let ingredient = ingredientsField.text?.trimmingCharacters(in: .whitespacesAndNewlines), !ingredient.isEmpty else {
+            simpleAlert("Enter an ingredient before adding it to the list")
+            return
         }
-        
-        UserDefaults.standard.set(items, forKey: "item")
-        simpleAlert("Item added")
+
+        if UserDefaults.standard.saveIngredient(ingredient) {
+            simpleAlert("Item added")
+        } else {
+            simpleAlert("That ingredient is already in your list")
+        }
         ingredientsField.text = ""
     }
     
     @IBAction func home(_ sender: Any) {
     }
     @IBAction func showList(_ sender: Any) {
-        let vc = storyboard?.instantiateViewController(identifier: "itemList")
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.itemList)
         self.present(vc!, animated: true, completion: nil)
     }
     

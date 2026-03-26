@@ -54,21 +54,17 @@ class ViewController: UIViewController,AVCaptureVideoDataOutputSampleBufferDeleg
     }
     
     @IBAction func addtolist(_ sender: Any) {
-        let itemObject = UserDefaults.standard.object(forKey: "item")
-        
-        var items : [String]
-        
-        if let tempItem = itemObject as? [String] {
-            items = tempItem
-            
-            items.append(self.ingredient)
-            
-        }else {
-            items = [self.ingredient]
+        let trimmedIngredient = ingredient.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedIngredient.isEmpty else {
+            simpleAlert("Scan an ingredient before adding it to the list")
+            return
         }
-        
-        UserDefaults.standard.set(items, forKey: "item")
-        self.simpleAlert("Item added")
+
+        if UserDefaults.standard.saveIngredient(trimmedIngredient) {
+            self.simpleAlert("Item added")
+        } else {
+            self.simpleAlert("That ingredient is already in your list")
+        }
         self.ingredient = ""
     }
     
@@ -79,8 +75,10 @@ class ViewController: UIViewController,AVCaptureVideoDataOutputSampleBufferDeleg
     }
     
     @IBAction func viewList(_ sender: Any) {
-        let vc = storyboard?.instantiateViewController(identifier: "itemList")
-        self.present(vc!, animated: true, completion: nil)
+        guard let vc = storyboard?.instantiateViewController(identifier: StoryboardID.itemList) else {
+            return
+        }
+        self.present(vc, animated: true, completion: nil)
     }
     func detect (pixelBuffer:CVPixelBuffer) {
         let vegetable = vegetableClassification()

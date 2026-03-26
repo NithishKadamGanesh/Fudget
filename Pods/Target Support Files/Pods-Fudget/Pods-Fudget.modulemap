@@ -1,0 +1,8 @@
+framework module Pods_Fudget {
+  umbrella header "Pods-Fudget-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+

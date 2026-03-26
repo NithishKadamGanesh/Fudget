@@ -16,20 +16,22 @@ class ViewControllerFour: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        bgView.clipsToBounds = true
-        bgView.layer.cornerRadius = 100
-        bgView.layer.maskedCorners = [.layerMaxXMaxYCorner, .layerMinXMaxYCorner]
+        bgView.applyHeaderStyle()
 
         self.tableView.delegate = self
         self.tableView.dataSource = self
         tableView.register(UINib(nibName: "RecipeCellOne", bundle: nil), forCellReuseIdentifier: "cell")
+        tableView.tableFooterView = UIView()
+        tableView.separatorStyle = .none
+        tableView.backgroundColor = .clear
+        updateEmptyState()
         let a = selectedIngredients.removeWhitespace()
         getRecipe(ingredients: a)
         
     }
     
     @IBAction func home(_ sender: Any) {
-        let vc = storyboard?.instantiateViewController(identifier: "home")
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.home)
         self.present(vc!, animated: true, completion: nil)
     }
     
@@ -52,7 +54,7 @@ extension ViewControllerFour:UITableViewDataSource,UITableViewDelegate {
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         self.selectedRecipe = currentRecipe[indexPath.row]
-        let vc = storyboard?.instantiateViewController(identifier: "detail") as! DetailVC
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.detail) as! DetailVC
         vc.selectedRecipe = self.selectedRecipe
         self.present(vc, animated: true, completion: nil)
     }
@@ -60,7 +62,12 @@ extension ViewControllerFour:UITableViewDataSource,UITableViewDelegate {
 extension ViewControllerFour {
     func getRecipe(ingredients:String){
         KRProgressHUD.show()
-        Alamofire.request("https://api.spoonacular.com/recipes/findByIngredients?apiKey=cc7bc07bbe4e4c1ea2001db8f9174860&ingredients=\(ingredients)", method: .get).responseJSON { (response) in
+        guard let encodedIngredients = ingredients.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            KRProgressHUD.dismiss()
+            simpleAlert("We couldn't prepare that ingredient list. Please try again.")
+            return
+        }
+        Alamofire.request(APIConfig.ingredientSearchURL(for: encodedIngredients), method: .get).responseJSON { (response) in
             if response.result.isSuccess {
                 let data:JSON = JSON(response.result.value!)
                 print(data)
@@ -68,10 +75,12 @@ extension ViewControllerFour {
             }else{
                 print(response.result.error!.localizedDescription)
                 KRProgressHUD.dismiss()
+                self.simpleAlert("We couldn't load recipes right now. Please check your connection and try again.")
             }
         }
     }
     func parseRecipe(json:JSON){
+        self.recipe.removeAll()
         for item in json {
             let image = item.1["image"].string ?? ""
             let name = item.1["title"].string ?? ""
@@ -80,7 +89,15 @@ extension ViewControllerFour {
             self.recipe.append(data)
         }
         self.currentRecipe = self.recipe
+        self.currentRecipe.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         self.tableView.reloadData()
         KRProgressHUD.dismiss()
+        updateEmptyState()
+    }
+
+    func updateEmptyState() {
+        tableView.backgroundView = currentRecipe.isEmpty
+            ? UIView.emptyStateView(title: AppCopy.recipesEmptyTitle, message: AppCopy.recipesEmptyBody)
+            : nil
     }
 }

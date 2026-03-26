@@ -9,7 +9,13 @@ class RecipeCellOne: UITableViewCell {
     
     override func awakeFromNib() {
         super.awakeFromNib()
-        // Initialization code
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        selectionStyle = .none
+        myimage.layer.cornerRadius = 18
+        myimage.clipsToBounds = true
+        name.font = UIFont(name: "AvenirNext-DemiBold", size: 17)
+        name.textColor = .black
     }
 
     override func setSelected(_ selected: Bool, animated: Bool) {
@@ -20,6 +26,8 @@ class RecipeCellOne: UITableViewCell {
     func setValuesOfRecipe(value:Recipe){
         if let url = URL(string: value.image) {
             myimage.sd_setImage(with: url, completed: nil)
+        } else {
+            myimage.image = UIImage(named: "logo")
         }
         self.name.text = value.name
     }

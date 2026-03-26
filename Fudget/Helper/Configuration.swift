@@ -1,7 +1,161 @@
-
 import Foundation
 import UIKit
 import SystemConfiguration
+
+enum StoryboardID {
+    static let home = "home"
+    static let add = "add"
+    static let scan = "scan"
+    static let itemList = "itemList"
+    static let result = "result"
+    static let detail = "detail"
+    static let favourites = "fav"
+}
+
+enum AppStorageKey {
+    static let items = "item"
+    static let likedRecipeIDs = "likedBy"
+    static let bmi = "bmi"
+}
+
+enum AppCopy {
+    static let recipesEmptyTitle = "No recipes yet"
+    static let recipesEmptyBody = "Add a few ingredients and we'll suggest recipes you can make."
+    static let favouritesEmptyTitle = "No favourites yet"
+    static let favouritesEmptyBody = "Tap the heart on any recipe to save it here."
+    static let ingredientsEmptyTitle = "No ingredients added"
+    static let ingredientsEmptyBody = "Add ingredients manually or scan them with the camera to get recipe matches."
+    static let recipeInstructionsUnavailable = "Instructions are unavailable for this recipe."
+    static let recipeIngredientsUnavailable = "Ingredients unavailable"
+    static let pantrySummaryPrefix = "Pantry"
+    static let homeSubtitle = "Pick a category or scan ingredients to get started."
+}
+
+enum APIConfig {
+    static let spoonacularBaseURL = "https://api.spoonacular.com"
+
+    static var spoonacularKey: String {
+        if let key = Bundle.main.object(forInfoDictionaryKey: "SPOONACULAR_API_KEY") as? String,
+           !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           key != "$(SPOONACULAR_API_KEY)" {
+            return key
+        }
+
+        return "cc7bc07bbe4e4c1ea2001db8f9174860"
+    }
+
+    static func ingredientSearchURL(for ingredients: String) -> String {
+        return "\(spoonacularBaseURL)/recipes/findByIngredients?apiKey=\(spoonacularKey)&ingredients=\(ingredients)"
+    }
+
+    static func recipeInformationURL(id: Int) -> String {
+        return "\(spoonacularBaseURL)/recipes/\(id)/information?apiKey=\(spoonacularKey)"
+    }
+
+    static func nutritionWidgetURL(id: Int) -> String {
+        return "\(spoonacularBaseURL)/recipes/\(id)/nutritionWidget.json?apiKey=\(spoonacularKey)"
+    }
+}
+
+extension UserDefaults {
+    var savedIngredients: [String] {
+        get { array(forKey: AppStorageKey.items) as? [String] ?? [] }
+        set { set(newValue, forKey: AppStorageKey.items) }
+    }
+
+    var likedRecipeIDs: [Int] {
+        get { array(forKey: AppStorageKey.likedRecipeIDs) as? [Int] ?? [] }
+        set { set(newValue, forKey: AppStorageKey.likedRecipeIDs) }
+    }
+
+    var savedBMI: String? {
+        get { string(forKey: AppStorageKey.bmi) }
+        set { setValue(newValue, forKey: AppStorageKey.bmi) }
+    }
+
+    @discardableResult
+    func saveIngredient(_ ingredient: String) -> Bool {
+        let normalized = ingredient
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .capitalizingFirstLetter()
+
+        guard !normalized.isEmpty else {
+            return false
+        }
+
+        var ingredients = savedIngredients
+        if ingredients.contains(where: { $0.caseInsensitiveCompare(normalized) == .orderedSame }) {
+            return false
+        }
+
+        ingredients.append(normalized)
+        savedIngredients = ingredients.sorted()
+        return true
+    }
+}
+
+extension UIView {
+    static func emptyStateView(title: String, message: String) -> UIView {
+        let container = UIView()
+        container.backgroundColor = .clear
+
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = title
+        titleLabel.font = UIFont(name: "AvenirNext-DemiBold", size: 22)
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+
+        let messageLabel = UILabel()
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.text = message
+        messageLabel.font = UIFont(name: "AvenirNext-Regular", size: 15)
+        messageLabel.textAlignment = .center
+        messageLabel.numberOfLines = 0
+        messageLabel.textColor = .secondaryLabel
+
+        let stack = UIStackView(arrangedSubviews: [titleLabel, messageLabel])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        stack.spacing = 8
+
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -24)
+        ])
+
+        return container
+    }
+
+    func applyCardStyle(cornerRadius: CGFloat = 18, shadowOpacity: Float = 0.12) {
+        layer.cornerRadius = cornerRadius
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = shadowOpacity
+        layer.shadowOffset = CGSize(width: 0, height: 8)
+        layer.shadowRadius = 18
+    }
+
+    func applyHeaderStyle() {
+        clipsToBounds = true
+        layer.cornerRadius = 36
+        layer.maskedCorners = [.layerMaxXMaxYCorner, .layerMinXMaxYCorner]
+    }
+}
+
+extension UILabel {
+    static func makeHeaderSubtitle(_ text: String) -> UILabel {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = text
+        label.textColor = UIColor.white.withAlphaComponent(0.92)
+        label.font = UIFont(name: "AvenirNext-Medium", size: 14)
+        label.numberOfLines = 0
+        return label
+    }
+}
 
 
 

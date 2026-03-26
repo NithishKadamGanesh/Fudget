@@ -17,25 +17,23 @@ class FavouriteVC: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        if let likedArry = UserDefaults.standard.object(forKey: "likedBy") {
-            self.recipeIds = likedArry as! Array
-            for item in recipeIds {
-                self.getRecipe(id: item)
-            }
-           
+        self.recipeIds = UserDefaults.standard.likedRecipeIDs
+        for item in recipeIds {
+            self.getRecipe(id: item)
         }
-        bgView.clipsToBounds = true
-        bgView.layer.cornerRadius = 100
-        bgView.layer.maskedCorners = [.layerMaxXMaxYCorner, .layerMinXMaxYCorner]
+        bgView.applyHeaderStyle()
 
         self.tableView.delegate = self
         self.tableView.dataSource = self
         tableView.register(UINib(nibName: "RecipeCellOne", bundle: nil), forCellReuseIdentifier: "cell")
-       
+        tableView.tableFooterView = UIView()
+        tableView.separatorStyle = .none
+        tableView.backgroundColor = .clear
+        updateEmptyState()
     }
     
     @IBAction func home(_ sender: Any) {
-        let vc = storyboard?.instantiateViewController(identifier: "home")
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.home)
         self.present(vc!, animated: true, completion: nil)
     }
     
@@ -58,7 +56,7 @@ extension FavouriteVC:UITableViewDataSource,UITableViewDelegate {
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         self.selectedRecipe = currentRecipe[indexPath.row]
-        let vc = storyboard?.instantiateViewController(identifier: "detail") as! DetailVC
+        let vc = storyboard?.instantiateViewController(identifier: StoryboardID.detail) as! DetailVC
         vc.selectedRecipe = self.selectedRecipe
         self.present(vc, animated: true, completion: nil)
     }
@@ -66,7 +64,7 @@ extension FavouriteVC:UITableViewDataSource,UITableViewDelegate {
 extension FavouriteVC {
     func getRecipe(id:Int){
         KRProgressHUD.show()
-        Alamofire.request("https://api.spoonacular.com/recipes/\(id)/information?apiKey=cc7bc07bbe4e4c1ea2001db8f9174860", method: .get).responseJSON { (response) in
+        Alamofire.request(APIConfig.recipeInformationURL(id: id), method: .get).responseJSON { (response) in
             if response.result.isSuccess {
                 let data:JSON = JSON(response.result.value!)
                 print(data)
@@ -81,8 +79,18 @@ extension FavouriteVC {
         let image = json["image"].string ?? ""
         let id = json["id"].int ?? 0
         let data = Recipe(name: title, image: image, id: id)
-        self.currentRecipe.append(data)
+        if !self.currentRecipe.contains(where: { $0.id == data.id }) {
+            self.currentRecipe.append(data)
+            self.currentRecipe.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
         KRProgressHUD.dismiss()
         self.tableView.reloadData()
+        updateEmptyState()
+    }
+
+    func updateEmptyState() {
+        tableView.backgroundView = currentRecipe.isEmpty
+            ? UIView.emptyStateView(title: AppCopy.favouritesEmptyTitle, message: AppCopy.favouritesEmptyBody)
+            : nil
     }
 }

@@ -19,45 +19,38 @@ class BmiVC: UIViewController {
     }
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if let bmi = UserDefaults.standard.object(forKey: "bmi"){
-            let stringBmi = bmi as! String
-            if stringBmi != "" {
-                let svc = storyboard?.instantiateViewController(identifier: "home")
+        if let stringBmi = UserDefaults.standard.savedBMI, !stringBmi.isEmpty {
+                let svc = storyboard?.instantiateViewController(identifier: StoryboardID.home)
                 present(svc!, animated: true, completion: nil)
-            }
         }
     }
 
     @IBAction func calculate(_ sender: Any) {
-        if height.text == "" || weight.text == "" {
+        guard
+            let heightText = height.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            let weightText = weight.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !heightText.isEmpty,
+            !weightText.isEmpty
+        else {
             simpleAlert("Enter your height and weight for BMI calculation")
-        }else {
-        let h = Double(height.text!)
-        let w = Double(weight.text!)
-            let result = calculateBmi(mass: w!, height: h!)
-            print(result)
-            UserDefaults.standard.setValue(result, forKey: "bmi")
-            let svc = storyboard?.instantiateViewController(identifier: "home")
-            present(svc!, animated: true, completion: nil)
+            return
         }
+
+        guard let h = Double(heightText), let w = Double(weightText), h > 0, w > 0 else {
+            simpleAlert("Enter valid numeric values for height and weight")
+            return
+        }
+
+        let result = calculateBmi(mass: w, height: h)
+        print(result)
+        UserDefaults.standard.savedBMI = result
+        let svc = storyboard?.instantiateViewController(identifier: StoryboardID.home)
+        present(svc!, animated: true, completion: nil)
     }
     
     func calculateBmi (mass : Double, height: Double) -> String
      {
-         let bmi = mass / (height * 2)
-
-        if (bmi > 25)
-        {
-            return ("\(bmi)")
-        }
-        else if (bmi >= 18.5 && bmi < 25)
-        {
-            return ("\(bmi)")
-        }
-        else
-        {
-            return ("\(bmi)")
-        }
-
+         let bmi = mass / (height * height)
+         return String(format: "%.1f", bmi)
      }
 }
