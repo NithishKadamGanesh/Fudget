@@ -3,6 +3,9 @@ import UIKit
 
 class CategoryCell: UICollectionViewCell {
     @IBOutlet weak var myLbl : UILabel!
+    private var cardView: UIView? {
+        return contentView.subviews.first
+    }
 
     override var isSelected: Bool {
         didSet {
@@ -12,10 +15,10 @@ class CategoryCell: UICollectionViewCell {
 
     override func awakeFromNib() {
         super.awakeFromNib()
-        contentView.layer.cornerRadius = 16
-        contentView.layer.borderWidth = 1
-        contentView.layer.borderColor = UIColor.systemYellow.cgColor
-        contentView.backgroundColor = .white
+        cardView?.layer.cornerRadius = 18
+        cardView?.layer.borderWidth = 1
+        cardView?.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        cardView?.backgroundColor = UIColor.white.withAlphaComponent(0.14)
         myLbl.font = UIFont(name: "AvenirNext-DemiBold", size: 13)
         updateAppearance()
     }
@@ -28,13 +31,18 @@ class CategoryCell: UICollectionViewCell {
 
     private func updateAppearance() {
         if isSelected {
-            contentView.backgroundColor = UIColor.black
-            myLbl.textColor = .white
-            contentView.layer.borderColor = UIColor.black.cgColor
+            cardView?.backgroundColor = AppTheme.surface
+            myLbl.textColor = AppTheme.ink
+            cardView?.layer.borderColor = AppTheme.surface.cgColor
+            cardView?.layer.shadowColor = UIColor.black.withAlphaComponent(0.12).cgColor
+            cardView?.layer.shadowOpacity = 1
+            cardView?.layer.shadowOffset = CGSize(width: 0, height: 10)
+            cardView?.layer.shadowRadius = 20
         } else {
-            contentView.backgroundColor = .white
-            myLbl.textColor = .black
-            contentView.layer.borderColor = UIColor.systemYellow.cgColor
+            cardView?.backgroundColor = UIColor.white.withAlphaComponent(0.14)
+            myLbl.textColor = UIColor.white.withAlphaComponent(0.92)
+            cardView?.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+            cardView?.layer.shadowOpacity = 0
         }
     }
 }

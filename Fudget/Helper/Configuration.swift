@@ -29,6 +29,43 @@ enum AppCopy {
     static let recipeIngredientsUnavailable = "Ingredients unavailable"
     static let pantrySummaryPrefix = "Pantry"
     static let homeSubtitle = "Pick a category or scan ingredients to get started."
+    static let pantryTips = "Add ingredients manually, scan them with the camera, or paste several at once separated by commas."
+    static let resultsSearchPlaceholder = "Filter recipes"
+    static let pantrySearchPlaceholder = "Filter ingredients"
+    static let favouritesSearchPlaceholder = "Filter favourites"
+    static let noConnection = "We couldn't connect right now. Please check your internet connection and try again."
+    static let scannerUnavailable = "The camera is unavailable on this device."
+    static let cameraPermissionDenied = "Camera access is turned off for Fudget. Enable it in Settings to scan ingredients."
+    static let sharePantryTitle = "My Fudget pantry"
+    static let summaryUnavailable = "Summary unavailable"
+    static let detailMetaUnavailable = "Recipe details unavailable"
+}
+
+enum AppTheme {
+    static let background = UIColor(hex: "#F5F1EA")
+    static let surface = UIColor(hex: "#FFFDFC")
+    static let surfaceMuted = UIColor(hex: "#EFE6D8")
+    static let primary = UIColor(hex: "#FF7A2F")
+    static let primaryDark = UIColor(hex: "#D85A14")
+    static let ink = UIColor(hex: "#171412")
+    static let inkSecondary = UIColor(hex: "#6E655C")
+    static let success = UIColor(hex: "#2E9A6B")
+    static let border = UIColor(hex: "#E6D9C8")
+    static let accentBlue = UIColor(hex: "#4C8BF5")
+    static let accentRose = UIColor(hex: "#E76D78")
+    static let accentGold = UIColor(hex: "#F4C76B")
+    static let accentMint = UIColor(hex: "#8BD8B1")
+
+    static let heroGradient: [CGColor] = [
+        UIColor(hex: "#171412").cgColor,
+        UIColor(hex: "#4A2617").cgColor,
+        UIColor(hex: "#FF7A2F").cgColor
+    ]
+
+    static let cardGradient: [CGColor] = [
+        UIColor(hex: "#FFFDFC").cgColor,
+        UIColor(hex: "#FAF2E5").cgColor
+    ]
 }
 
 enum APIConfig {
@@ -77,7 +114,7 @@ extension UserDefaults {
     func saveIngredient(_ ingredient: String) -> Bool {
         let normalized = ingredient
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .capitalizingFirstLetter()
+            .normalizedIngredient()
 
         guard !normalized.isEmpty else {
             return false
@@ -95,6 +132,10 @@ extension UserDefaults {
 }
 
 extension UIView {
+    var allSubviews: [UIView] {
+        subviews + subviews.flatMap { $0.allSubviews }
+    }
+
     static func emptyStateView(title: String, message: String) -> UIView {
         let container = UIView()
         container.backgroundColor = .clear
@@ -143,6 +184,63 @@ extension UIView {
         layer.cornerRadius = 36
         layer.maskedCorners = [.layerMaxXMaxYCorner, .layerMinXMaxYCorner]
     }
+
+    func applyModernCardStyle(cornerRadius: CGFloat = 24) {
+        backgroundColor = AppTheme.surface
+        layer.cornerRadius = cornerRadius
+        layer.borderWidth = 1
+        layer.borderColor = AppTheme.border.cgColor
+        layer.shadowColor = UIColor.black.withAlphaComponent(0.12).cgColor
+        layer.shadowOpacity = 1
+        layer.shadowOffset = CGSize(width: 0, height: 16)
+        layer.shadowRadius = 32
+    }
+
+    func applyBackgroundGradient(colors: [CGColor], key: String = "fudget.gradient") {
+        layer.sublayers?
+            .filter { $0.name == key }
+            .forEach { $0.removeFromSuperlayer() }
+
+        let gradient = CAGradientLayer()
+        gradient.name = key
+        gradient.colors = colors
+        gradient.startPoint = CGPoint(x: 0, y: 0)
+        gradient.endPoint = CGPoint(x: 1, y: 1)
+        gradient.frame = bounds
+        gradient.cornerRadius = layer.cornerRadius
+        layer.insertSublayer(gradient, at: 0)
+    }
+
+    func applyDepthMotion(intensity: CGFloat = 12) {
+        motionEffects
+            .filter { $0 is UIMotionEffectGroup }
+            .forEach { removeMotionEffect($0) }
+
+        let horizontal = UIInterpolatingMotionEffect(keyPath: "center.x", type: .tiltAlongHorizontalAxis)
+        horizontal.minimumRelativeValue = -intensity
+        horizontal.maximumRelativeValue = intensity
+
+        let vertical = UIInterpolatingMotionEffect(keyPath: "center.y", type: .tiltAlongVerticalAxis)
+        vertical.minimumRelativeValue = -intensity
+        vertical.maximumRelativeValue = intensity
+
+        let group = UIMotionEffectGroup()
+        group.motionEffects = [horizontal, vertical]
+        addMotionEffect(group)
+    }
+
+    func applyAmbientFloat(offset: CGFloat = 10, duration: CFTimeInterval = 3.8, key: String = "fudget.float") {
+        guard layer.animation(forKey: key) == nil else { return }
+
+        let animation = CABasicAnimation(keyPath: "transform.translation.y")
+        animation.fromValue = -offset
+        animation.toValue = offset
+        animation.duration = duration
+        animation.autoreverses = true
+        animation.repeatCount = .infinity
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        layer.add(animation, forKey: key)
+    }
 }
 
 extension UILabel {
@@ -154,6 +252,96 @@ extension UILabel {
         label.font = UIFont(name: "AvenirNext-Medium", size: 14)
         label.numberOfLines = 0
         return label
+    }
+}
+
+extension UILabel {
+    static func makeHeadline(_ text: String, size: CGFloat = 30, color: UIColor = AppTheme.ink) -> UILabel {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = text
+        label.font = UIFont(name: "AvenirNext-Bold", size: size)
+        label.textColor = color
+        label.numberOfLines = 0
+        return label
+    }
+
+    static func makeBody(_ text: String, size: CGFloat = 15, color: UIColor = AppTheme.inkSecondary) -> UILabel {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = text
+        label.font = UIFont(name: "AvenirNext-Medium", size: size)
+        label.textColor = color
+        label.numberOfLines = 0
+        return label
+    }
+}
+
+extension UIButton {
+    func applyPrimaryCTA(title: String? = nil) {
+        if let title {
+            setTitle(title, for: .normal)
+        }
+        backgroundColor = AppTheme.primary
+        setTitleColor(AppTheme.ink, for: .normal)
+        titleLabel?.font = UIFont(name: "AvenirNext-Bold", size: 16)
+        layer.cornerRadius = 22
+        layer.borderWidth = 0
+        layer.shadowColor = AppTheme.primaryDark.cgColor
+        layer.shadowOpacity = 0.22
+        layer.shadowOffset = CGSize(width: 0, height: 14)
+        layer.shadowRadius = 22
+    }
+
+    func applySecondaryCTA() {
+        backgroundColor = UIColor.white.withAlphaComponent(0.16)
+        setTitleColor(.white, for: .normal)
+        titleLabel?.font = UIFont(name: "AvenirNext-DemiBold", size: 14)
+        layer.cornerRadius = 20
+        layer.borderWidth = 1
+        layer.borderColor = UIColor.white.withAlphaComponent(0.22).cgColor
+    }
+
+    func applySoftPill() {
+        backgroundColor = AppTheme.surfaceMuted
+        setTitleColor(AppTheme.ink, for: .normal)
+        titleLabel?.font = UIFont(name: "AvenirNext-DemiBold", size: 14)
+        layer.cornerRadius = 18
+        layer.borderWidth = 1
+        layer.borderColor = AppTheme.border.cgColor
+    }
+
+    func applyTintedPill(background: UIColor, foreground: UIColor = AppTheme.ink) {
+        backgroundColor = background
+        setTitleColor(foreground, for: .normal)
+        titleLabel?.font = UIFont(name: "AvenirNext-DemiBold", size: 14)
+        layer.cornerRadius = 18
+        layer.borderWidth = 0
+    }
+}
+
+extension UISearchBar {
+    func applyModernAppearance(placeholderText: String) {
+        placeholder = placeholderText
+        searchBarStyle = .minimal
+        tintColor = AppTheme.ink
+        barTintColor = .clear
+
+        if let textField = searchTextField as UITextField? {
+            textField.backgroundColor = AppTheme.surface
+            textField.textColor = AppTheme.ink
+            textField.layer.cornerRadius = 16
+            textField.layer.masksToBounds = true
+            textField.font = UIFont(name: "AvenirNext-Medium", size: 14)
+        }
+    }
+}
+
+extension UITextField {
+    func setLeftPaddingPoints(_ amount: CGFloat) {
+        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: amount, height: frame.size.height))
+        leftView = paddingView
+        leftViewMode = .always
     }
 }
 
@@ -223,6 +411,23 @@ extension String {
     func removeWhitespace() -> String {
         return self.replace(string: " ", replacement: "")
     }
+
+    func normalizedIngredient() -> String {
+        return trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: " ")
+            .map { $0.capitalized }
+            .joined(separator: " ")
+    }
+
+    func ingredientTokens() -> [String] {
+        return replacingOccurrences(of: "\n", with: ",")
+            .replacingOccurrences(of: ";", with: ",")
+            .split(separator: ",")
+            .map { String($0).normalizedIngredient() }
+            .filter { !$0.isEmpty }
+            .removeDuplicates()
+    }
+
     func capitalizingFirstLetter() -> String {
         return prefix(1).uppercased() + dropFirst()
     }
@@ -255,7 +460,69 @@ extension String {
     var htmlToString: String {
         return htmlToAttributedString?.string ?? ""
     }
-    
+
+}
+
+extension Collection where Element == Recipe {
+    func filteredRecipes(using query: String) -> [Recipe] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            return Array(self)
+        }
+
+        return filter { recipe in
+            recipe.name.localizedCaseInsensitiveContains(trimmedQuery)
+            || recipe.summary.localizedCaseInsensitiveContains(trimmedQuery)
+            || recipe.ingredients.contains(where: { $0.localizedCaseInsensitiveContains(trimmedQuery) })
+        }
+    }
+}
+
+enum RecipeSortOption: Int {
+    case bestMatch = 0
+    case quickToCook = 1
+    case alphabetical = 2
+    case reverseAlphabetical = 3
+
+    var title: String {
+        switch self {
+        case .bestMatch: return "Match"
+        case .quickToCook: return "Quick"
+        case .alphabetical: return "A-Z"
+        case .reverseAlphabetical: return "Z-A"
+        }
+    }
+
+    static var allTitles: [String] {
+        return [RecipeSortOption.bestMatch, .quickToCook, .alphabetical, .reverseAlphabetical].map { $0.title }
+    }
+}
+
+extension Array where Element == Recipe {
+    func sorted(using option: RecipeSortOption) -> [Recipe] {
+        switch option {
+        case .bestMatch:
+            return sorted {
+                if $0.matchScore == $1.matchScore {
+                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
+                return $0.matchScore > $1.matchScore
+            }
+        case .quickToCook:
+            return sorted {
+                let left = $0.readyInMinutes ?? Int.max
+                let right = $1.readyInMinutes ?? Int.max
+                if left == right {
+                    return $0.matchScore > $1.matchScore
+                }
+                return left < right
+            }
+        case .alphabetical:
+            return sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .reverseAlphabetical:
+            return sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        }
+    }
 }
 extension UILabel {
     func set(image: UIImage, with text: String) {
@@ -574,6 +841,58 @@ extension UIViewController {
         let ok = UIAlertAction(title: "OK", style: .default, handler: { (action) -> Void in })
         alert.addAction(ok)
         present(alert, animated: true, completion: nil)
+    }
+
+    func confirmAction(title: String, message: String, confirmTitle: String, confirmHandler: @escaping () -> Void) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: confirmTitle, style: .destructive) { _ in
+            confirmHandler()
+        })
+        present(alert, animated: true)
+    }
+
+    func presentShareSheet(items: [Any]) {
+        let activityController = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let popover = activityController.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        }
+        present(activityController, animated: true)
+    }
+
+    func dismissToPreviousScreen() {
+        dismiss(animated: true)
+    }
+
+    func embedFullScreen(_ child: UIView) {
+        view.addSubview(child)
+        child.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            child.topAnchor.constraint(equalTo: view.topAnchor),
+            child.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
+
+    func animateEntrance(for views: [UIView], initialOffset: CGFloat = 26) {
+        for (index, item) in views.enumerated() {
+            item.alpha = 0
+            item.transform = CGAffineTransform(translationX: 0, y: initialOffset).scaledBy(x: 0.98, y: 0.98)
+
+            UIView.animate(
+                withDuration: 0.8,
+                delay: 0.06 * Double(index),
+                usingSpringWithDamping: 0.84,
+                initialSpringVelocity: 0.45,
+                options: [.curveEaseOut],
+                animations: {
+                    item.alpha = 1
+                    item.transform = .identity
+                }
+            )
+        }
     }
     // ------------------------------------------------
     // MARK: - SHOW/HIDE LOADING HUD

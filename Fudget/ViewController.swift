@@ -16,36 +16,86 @@ class ViewController: UIViewController,AVCaptureVideoDataOutputSampleBufferDeleg
     let captureSession = AVCaptureSession()
     let wikiPediaUrl = "https://en.wikipedia.org/w/api.php"
     var ingredient = ""
+    private var isProcessingFrame = false
+    private var hasDetectedIngredient = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        //get input from the device
-      
+        view.backgroundColor = AppTheme.background
+        bgView.applyHeaderStyle()
+        label.backgroundColor = AppTheme.surface
+        label.textColor = AppTheme.ink
+        label.layer.cornerRadius = 24
+        label.clipsToBounds = true
+        configureScanner()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        bgView.applyBackgroundGradient(colors: AppTheme.heroGradient)
+        for button in view.allSubviews.compactMap({ $0 as? UIButton }) where button.currentTitle != nil {
+            button.applyPrimaryCTA()
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        captureSession.stopRunning()
+    }
+
+    private func configureScanner() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            setupCameraSession()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    granted ? self.setupCameraSession() : self.simpleAlert(AppCopy.cameraPermissionDenied)
+                }
+            }
+        default:
+            simpleAlert(AppCopy.cameraPermissionDenied)
+        }
+    }
+
+    private func setupCameraSession() {
+        guard captureSession.inputs.isEmpty, captureSession.outputs.isEmpty else {
+            if !captureSession.isRunning {
+                captureSession.startRunning()
+            }
+            return
+        }
+
         guard let captureDevice = AVCaptureDevice.default(for: .video) else {
+            simpleAlert(AppCopy.scannerUnavailable)
             return
         }
         guard let input = try? AVCaptureDeviceInput(device: captureDevice) else {
+            simpleAlert(AppCopy.scannerUnavailable)
             return
         }
         captureSession.addInput(input)
-        captureSession.startRunning()
         
-        // get output from the camera
         let cameraOutput = AVCaptureVideoDataOutput()
         cameraOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "Video"))
         captureSession.addOutput(cameraOutput)
         
-      // display the output
         let cameraPreview = AVCaptureVideoPreviewLayer(session: captureSession)
         cameraPreview.frame = CGRect(x: 0, y: 0, width: cameraView.frame.width, height: cameraView.frame.height)
         cameraPreview.videoGravity = .resizeAspectFill
         cameraView.layer.addSublayer(cameraPreview)
+        label.text = "Point the camera at an ingredient"
+        captureSession.startRunning()
     }
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard !isProcessingFrame, !hasDetectedIngredient else {
+            return
+        }
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return
         }
+        isProcessingFrame = true
         detect(pixelBuffer: pixelBuffer)
     }
 
@@ -70,8 +120,9 @@ class ViewController: UIViewController,AVCaptureVideoDataOutputSampleBufferDeleg
     
     @IBAction func rescan(_ sender: Any) {
         self.label.text = "..."
+        self.ingredient = ""
+        hasDetectedIngredient = false
         captureSession.startRunning()
-        
     }
     
     @IBAction func viewList(_ sender: Any) {
@@ -96,27 +147,25 @@ class ViewController: UIViewController,AVCaptureVideoDataOutputSampleBufferDeleg
             print(classification.identifier.capitalized)
             let myConfidence =   classification.confidence * 100
             if myConfidence > 80.0 {
-            self.captureSession.stopRunning()
+                self.captureSession.stopRunning()
+                self.hasDetectedIngredient = true
                 
-            DispatchQueue.main.async {
-            self.ingredient = classification.identifier.capitalized
-            self.label.text = "\(classification.identifier.capitalized) \(myConfidence)%"
-              }
+                DispatchQueue.main.async {
+                    self.ingredient = classification.identifier.normalizedIngredient()
+                    self.label.text = "\(classification.identifier.normalizedIngredient()) \(Int(myConfidence))%"
+                }
             }
-          
+            self.isProcessingFrame = false
         }
         
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
-        DispatchQueue.global().sync {
+        DispatchQueue.global().async {
             do {
-                
-            try handler.perform([request])
-                
+                try handler.perform([request])
             }catch {
                 print(error)
+                self.isProcessingFrame = false
             }
         }
-      
     }
 }
-
