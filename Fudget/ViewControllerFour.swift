@@ -251,6 +251,15 @@ private extension ViewControllerFour {
 }
 
 extension ViewControllerFour {
+    @discardableResult
+    func presentFirstRecipeForDemo() -> Bool {
+        guard let recipe = filteredRecipes.first ?? recipes.first else {
+            return false
+        }
+        navigationController?.pushViewController(DetailVC(recipe: recipe), animated: true)
+        return true
+    }
+
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         applyFilter()
     }

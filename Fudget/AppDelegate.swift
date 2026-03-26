@@ -8,6 +8,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         IQKeyboardManager.shared.enable = true
+        ShowcaseDirector.shared.prepareDataIfNeeded()
 
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.rootViewController = EntryExperienceViewController()
@@ -82,11 +83,90 @@ final class ReimaginedRootTabBarController: UITabBarController {
         tabBar.layer.shadowRadius = 22
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        ShowcaseDirector.shared.startDemoIfNeeded(from: self)
+    }
+
     private func makeTab(root: UIViewController, title: String, image: String) -> UIViewController {
         let navigationController = UINavigationController(rootViewController: root)
         navigationController.navigationBar.isHidden = true
         navigationController.tabBarItem = UITabBarItem(title: title, image: UIImage(systemName: image), selectedImage: UIImage(systemName: image))
         return navigationController
+    }
+}
+
+final class ShowcaseDirector {
+    static let shared = ShowcaseDirector()
+
+    private var demoHasStarted = false
+
+    private var arguments: [String] {
+        ProcessInfo.processInfo.arguments
+    }
+
+    var shouldSeedShowcaseData: Bool {
+        arguments.contains("-demoTour") || arguments.contains("-seedShowcaseData")
+    }
+
+    var shouldRunDemoTour: Bool {
+        arguments.contains("-demoTour")
+    }
+
+    func prepareDataIfNeeded() {
+        guard shouldSeedShowcaseData else { return }
+        let defaults = UserDefaults.standard
+        defaults.savedIngredients = ["Tomato", "Garlic", "Salmon", "Rice", "Spinach", "Yogurt", "Lemon", "Cucumber"]
+        defaults.likedRecipeIDs = [715538, 716429]
+        defaults.savedBMI = "22.4 • Healthy"
+    }
+
+    func startDemoIfNeeded(from tabBarController: ReimaginedRootTabBarController) {
+        guard shouldRunDemoTour, !demoHasStarted else { return }
+        demoHasStarted = true
+
+        perform(after: 1.6) {
+            tabBarController.selectedIndex = 1
+        }
+        perform(after: 5.2) {
+            tabBarController.selectedIndex = 2
+        }
+        perform(after: 9.4) { [weak tabBarController] in
+            self.openDiscoverDetail(from: tabBarController, attemptsRemaining: 6)
+        }
+        perform(after: 14.8) { [weak tabBarController] in
+            let navigationController = tabBarController?.selectedViewController as? UINavigationController
+            navigationController?.popViewController(animated: true)
+        }
+        perform(after: 17.8) {
+            tabBarController.selectedIndex = 3
+        }
+        perform(after: 21.2) {
+            tabBarController.selectedIndex = 4
+        }
+        perform(after: 24.8) {
+            tabBarController.selectedIndex = 0
+        }
+    }
+
+    private func openDiscoverDetail(from tabBarController: ReimaginedRootTabBarController?, attemptsRemaining: Int) {
+        guard attemptsRemaining > 0,
+              let navigationController = tabBarController?.selectedViewController as? UINavigationController,
+              let discover = navigationController.viewControllers.first as? ViewControllerFour else {
+            return
+        }
+
+        if discover.presentFirstRecipeForDemo() {
+            return
+        }
+
+        perform(after: 1.0) { [weak tabBarController] in
+            self.openDiscoverDetail(from: tabBarController, attemptsRemaining: attemptsRemaining - 1)
+        }
+    }
+
+    private func perform(after delay: TimeInterval, _ action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: action)
     }
 }
 
